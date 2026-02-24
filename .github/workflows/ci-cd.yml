@@ -49,8 +49,33 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
+          timeout: 60
+          command_timeout: 600
           script: |
-            docker pull ${{ env.DOCKERHUB_REPO_BACK }}:latest
-            docker pull ${{ env.DOCKERHUB_REPO_FRONT }}:latest
-            docker-compose -f ~/docker-compose.prod.yml pull || true
-            docker-compose -f ~/docker-compose.prod.yml up -d
+            set -euo pipefail
+            echo "Starting remote deploy..."
+            echo "Pulling images: ${{ env.DOCKERHUB_REPO_BACK }} and ${{ env.DOCKERHUB_REPO_FRONT }}"
+            docker pull ${{ env.DOCKERHUB_REPO_BACK }}:latest || true
+            docker pull ${{ env.DOCKERHUB_REPO_FRONT }}:latest || true
+
+            # Choose docker-compose v1 or v2 (plugin)
+            if command -v docker-compose >/dev/null 2>&1; then
+              DC="docker-compose -f ~/docker-compose.prod.yml"
+            else
+              DC="docker compose -f ~/docker-compose.prod.yml"
+            fi
+
+            echo "Using: $DC"
+
+            # Try pull with retries
+            n=0
+            until [ $n -ge 3 ]
+            do
+              $DC pull && break
+              n=$((n+1))
+              echo "Pull attempt $n failed, retrying in 5s..."
+              sleep 5
+            done
+
+            # Start/update services
+            $DC up -d
