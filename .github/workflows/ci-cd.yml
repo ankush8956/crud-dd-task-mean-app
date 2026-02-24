@@ -49,8 +49,8 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
-          timeout: 60
-          command_timeout: 600
+          timeout: 60s
+          command_timeout: 600s
           script: |
             set -euo pipefail
             echo "Starting remote deploy..."
